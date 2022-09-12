@@ -1,6 +1,11 @@
 open Printf
+open Comp
 
-let () = Comp.Input.read ()
-        |> List.map (fun (_, y) -> y)
-        |> List.iter (printf "%c,");
+
+let () =
+  Input.read ()
+  |> Lexer.get_all_tokens
+  |> List.map (fun t -> Lexer.string_of_op t)
+  |> List.iter (printf "%s")
+
 
