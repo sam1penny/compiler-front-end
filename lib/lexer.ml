@@ -7,6 +7,7 @@ type token =
   | COS
   | EXCLAMATION_MARK
   | NUM of string
+  | WS
   | EOF
 
 let string_of_op = function
@@ -16,6 +17,7 @@ let string_of_op = function
   | COS -> "[cos]"
   | EXCLAMATION_MARK -> "[!]"
   | NUM(s) -> Printf.sprintf "[%s]" s
+  | WS -> "[WS]"
   | EOF -> "EOF"
 
 type rule = Regex.regex * (char list -> token)
@@ -39,6 +41,8 @@ let number =  Regex.concat_list [ optplus; floating; optexp]
 
 let to_string clist = List.to_seq clist |> String.of_seq;;
 
+let whitespace = Regex.one_or_more(Regex.union_string "\n \t")
+
 let rules : rule list = [
   Regex.Character('+'), (fun _ -> PLUS) ;
   Regex.Character('-'), (fun _ -> MINUS) ;
@@ -47,6 +51,7 @@ let rules : rule list = [
   Regex.Character('!'), (fun _ -> EXCLAMATION_MARK) ;
   number, (fun x -> NUM(to_string x)) ;
   Regex.Character('\004'), ( fun _ -> EOF) ;
+  whitespace, (fun _ -> WS) ;
 ]
 
 (* get all regular expressions that are not in the dead state -
@@ -76,7 +81,7 @@ let get_token stream =
   loop rules stream [] None
 *)
 
-let get_token stream =
+let rec get_token stream =
   let rec get_token_inner state stream lexeme last_match =
     match stream with
       [] -> last_match
@@ -86,24 +91,18 @@ let get_token stream =
           [] -> last_match
           |_ -> match matched_rules state with
             [] -> get_token_inner state rest (c::lexeme) last_match
-            |(_, action)::_ -> get_token_inner state rest (c::lexeme) (Some(action, c::lexeme, stream))
+            |(_, action)::_ -> get_token_inner state rest (c::lexeme) (Some(action, c::lexeme, rest))
       in
   match get_token_inner rules stream [] None with
       None -> raise No_Match
-      |Some(action, lexeme, stream) -> (action (List.rev lexeme)), stream
+      |Some(action, lexeme, stream) -> match action (List.rev lexeme) with
+                                        (* If whitespace is matched, call get_token again to get a non-ws token*)
+                                        WS -> get_token stream
+                                        |token -> token, stream
 
 let rec get_all_tokens stream =
   match stream with
     [] -> []
     |_ -> match get_token stream with
       |t, [] -> [t]
-      |t, _::tail -> t :: get_all_tokens tail
-
-(*
-let rec get_all_tokens stream =
-  match get_token stream with
-    (Some(t), []) -> [t]
-    |(None, []) -> []
-    |(Some(t), hd::tl) -> t :: get_all_tokens (hd::tl)
-    |(None, _::tl) -> get_all_tokens (tl)
-*)
+      |t, new_stream -> t :: get_all_tokens new_stream
