@@ -20,21 +20,22 @@ let string_of_op = function
 
 type rule = Regex.regex * (char list -> token)
 
-let digit = Regex.union_list "0123456789"
-let plusdigit = Regex.union_list "123456789"
+let digit = Regex.union_string "0123456789"
+let plusdigit = Regex.union_string "123456789"
 let integer = Regex.concat plusdigit (Regex.Star digit)
 
 let prefix = Regex.union (Regex.Character('0')) integer
 
-let optplus = Regex.zero_or_one (Regex.union_list "+-")
-let optexp = Regex.zero_or_one (Regex.concat (Regex.Character('e')) (Regex.concat optplus integer))
+let optplus = Regex.zero_or_one (Regex.union_string "+-")
+let optexp = Regex.zero_or_one (Regex.concat_list [Regex.Character('e'); optplus; integer])
 
-let floating = Regex.union integer (Regex.union
-      (Regex.concat (Regex.Character('.')) (Regex.one_or_more digit))
-      (Regex.concat prefix (Regex.concat (Regex.Character('.')) (Regex.Star digit)))
-      )
+let floating = Regex.union_list [
+  integer;
+  Regex.concat (Regex.Character('.')) (Regex.one_or_more digit);
+  Regex.concat_list [ prefix; Regex.Character('.'); (Regex.Star(digit))]
+]
 
-let number = Regex.concat optplus (Regex.concat floating optexp)
+let number =  Regex.concat_list [ optplus; floating; optexp]
 
 let to_string clist = List.to_seq clist |> String.of_seq;;
 
@@ -42,7 +43,7 @@ let rules : rule list = [
   Regex.Character('+'), (fun _ -> PLUS) ;
   Regex.Character('-'), (fun _ -> MINUS) ;
   Regex.Character('^'), (fun _ -> CARAT) ;
-  Regex.concat_list "cos", (fun _ -> COS) ;
+  Regex.concat_string "cos", (fun _ -> COS) ;
   Regex.Character('!'), (fun _ -> EXCLAMATION_MARK) ;
   number, (fun x -> NUM(to_string x)) ;
   Regex.Character('\004'), ( fun _ -> EOF) ;

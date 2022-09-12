@@ -62,10 +62,16 @@ let explode s =
   in
   exp (String.length s - 1) []
 
-let union_list s = explode s
-  |> List.fold_left (fun acc c -> union (Character(c)) acc) EmptySet
+let union_list = List.fold_left(fun acc c -> union acc c) EmptySet
+let concat_list = List.fold_left(fun acc c -> concat acc c) EmptyString
 
-let concat_list s = List.fold_right (fun c acc -> concat (Character(c)) acc) (explode s) EmptyString
+let union_string s = explode s
+  |> List.map(fun c -> Character(c))
+  |> union_list
+
+let concat_string s = explode s
+  |> List.map(fun c -> Character(c))
+  |> concat_list
 
 (* match function *)
 
