@@ -10,14 +10,14 @@ type token =
   | WS
   | EOF
 
-let string_of_op = function
-  | PLUS -> "[+]"
-  | MINUS -> "[-]"
+let string_of_token = function
+  | PLUS -> "+"
+  | MINUS -> "-"
   | CARAT -> "^"
-  | COS -> "[cos]"
-  | EXCLAMATION_MARK -> "[!]"
-  | NUM(s) -> Printf.sprintf "[%s]" s
-  | WS -> "[WS]"
+  | COS -> "cos"
+  | EXCLAMATION_MARK -> "!"
+  | NUM(s) -> Printf.sprintf "%s" s
+  | WS -> "WS"
   | EOF -> "EOF"
 
 type rule = Regex.regex * (char list -> token)
@@ -85,24 +85,24 @@ let rec get_token stream =
   let rec get_token_inner state stream lexeme last_match =
     match stream with
       [] -> last_match
-      |(_, c)::rest ->
+      |(line, c)::rest ->
         let state = next_state state c in
         match state with
           [] -> last_match
           |_ -> match matched_rules state with
             [] -> get_token_inner state rest (c::lexeme) last_match
-            |(_, action)::_ -> get_token_inner state rest (c::lexeme) (Some(action, c::lexeme, rest))
+            |(_, action)::_ -> get_token_inner state rest (c::lexeme) (Some(action, c::lexeme, line, rest))
       in
   match get_token_inner rules stream [] None with
       None -> raise No_Match
-      |Some(action, lexeme, stream) -> match action (List.rev lexeme) with
+      |Some(action, lexeme, line, stream) -> match action (List.rev lexeme) with
                                         (* If whitespace is matched, call get_token again to get a non-ws token*)
                                         WS -> get_token stream
-                                        |token -> token, stream
+                                        |token -> (line, token), stream
 
 let rec get_all_tokens stream =
   match stream with
     [] -> []
     |_ -> match get_token stream with
-      |t, [] -> [t]
-      |t, new_stream -> t :: get_all_tokens new_stream
+      |(line, token), [] -> [(line, token)]
+      |(line, token), new_stream -> (line, token) :: get_all_tokens new_stream
