@@ -39,7 +39,6 @@ let floating = Regex.union_list [
 
 let number =  Regex.concat_list [ optplus; floating; optexp]
 
-let to_string clist = List.to_seq clist |> String.of_seq;;
 
 let whitespace = Regex.one_or_more(Regex.union_string "\n \t")
 
@@ -49,7 +48,7 @@ let rules : rule list = [
   Regex.Character('^'), (fun _ -> CARAT) ;
   Regex.concat_string "cos", (fun _ -> COS) ;
   Regex.Character('!'), (fun _ -> EXCLAMATION_MARK) ;
-  number, (fun x -> NUM(to_string x)) ;
+  number, (fun x -> NUM(Utils.chars_to_string x)) ;
   Regex.Character('\004'), ( fun _ -> EOF) ;
   whitespace, (fun _ -> WS) ;
 ]
