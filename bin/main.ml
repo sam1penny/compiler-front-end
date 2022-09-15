@@ -20,6 +20,9 @@ let add_prod = (Parser.Nonterminal("E"), [Parser.Nonterminal("E"); Parser.Termin
 let test_items = [Parser.Item(1, root_prod); Parser.Item(1, add_prod)]
 
 let () =
+  print_endline "--- Grammar --- ";
+  Parser.grammar_productions Parser.test_grammar
+  |> List.iter Parser.print_production;
   print_endline "--- Closure of root production ---";
   let start_state = Parser.closure Parser.test_grammar [initial_item] in
   List.iter Parser.print_item start_state;
@@ -32,3 +35,10 @@ let () =
   print_endline "--- Canonical Collection ---";
   Parser.canonical_collection Parser.test_grammar
   |> List.iter (fun l -> print_endline "- item set: -"; List.iter Parser.print_item l;);
+  print_endline "--- First set ---";
+  Printf.printf "[ ";
+  Parser.first_list Parser.test_grammar (Parser.Nonterminal "E")
+  |> List.map Parser.string_of_symbol
+  |> List.iter (Printf.printf "%s ");
+  Printf.printf "]";
+  print_endline ""

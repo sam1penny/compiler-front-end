@@ -29,6 +29,14 @@ let print_item (Item(dot, (nt, tlist))) =
   |> List.iter (Printf.printf "%s ");
   print_endline ""
 
+let print_production (head, body) =
+  string_of_symbol head
+  |> Printf.printf "%s";
+  Printf.printf " -> ";
+  List.map string_of_symbol body
+  |> List.iter (Printf.printf "%s ");
+  print_endline ""
+
 
 let test_grammar = Grammar (
   [Terminal("+"); Terminal("*"); Terminal("num"); Terminal("("); Terminal(")")],
@@ -43,6 +51,9 @@ let test_grammar = Grammar (
   (Nonterminal("F"), [Terminal("("); Nonterminal("E"); Terminal(")")]);
   (Nonterminal("F"), [Terminal("num")]);
   ])
+
+let production_lhs (head, _) = head
+let production_rhs (_, body) = body
 
 let grammar_terminals (Grammar (t, _, _, _)) = t
 let grammar_nonterminals (Grammar (_, nt, _, _)) = nt
@@ -85,12 +96,15 @@ let equal_collections c1 c2 =
   in
   is_subset (c1, c2) && List.length c1 = List.length c2
 
-let closure (g : grammar) items =
+let get_productions grammar nt =
+  grammar_productions grammar
+  |> List.filter(fun (prod_head, _) -> prod_head = nt)
+
+let closure g items =
   let single_item_closure_step item =
     match get_next_symbol item with
       None | Some(Terminal(_)) -> []
-      |Some(nt) -> grammar_productions g
-        |> List.filter (fun (prod_head, _) -> prod_head = nt)
+      |Some(nt) -> get_productions g nt
         |> List.map (fun prod -> Item(0, prod))
 
   in
@@ -143,3 +157,30 @@ let canonical_collection grammar =
   in
 
   repeat_until_unchanged c
+
+
+module SymbolSet = Set.Make(struct type t = symbol let compare = compare end)
+let rec first_set grammar symbol =
+  let prod_first acc prod =
+    let rec inner acc = function
+      [] -> SymbolSet.add (Terminal "epsilon") acc
+      |s::ss -> if s = (production_lhs prod) then acc
+      else
+      let s_first = first_set grammar s in
+      if SymbolSet.mem (Terminal "epsilon") s_first then inner (SymbolSet.union acc s_first) ss
+      else (SymbolSet.union acc s_first)
+    in
+    inner acc (production_rhs prod)
+  in
+
+  match symbol with
+    Terminal(_) -> SymbolSet.add symbol SymbolSet.empty
+    |Nonterminal(_) -> List.fold_left(fun acc prod ->
+      prod_first acc prod
+      |> SymbolSet.union acc
+    ) SymbolSet.empty (get_productions grammar symbol)
+
+let first_list grammar symbol =
+  first_set grammar symbol
+  |> SymbolSet.to_seq
+  |> List.of_seq
