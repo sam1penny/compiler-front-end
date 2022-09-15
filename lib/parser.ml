@@ -6,7 +6,7 @@ type symbol =
 type production = symbol * symbol list
 
 (* Terminals, Nonterminals, Root, Productions *)
-type grammar = symbol list * symbol list * symbol * production list
+type grammar = Grammar of symbol list * symbol list * symbol * production list
 
 
 let string_of_symbol = function
@@ -30,7 +30,7 @@ let print_item (Item(dot, (nt, tlist))) =
   print_endline ""
 
 
-let test_grammar : grammar =
+let test_grammar = Grammar (
   [Terminal("+"); Terminal("*"); Terminal("num"); Terminal("("); Terminal(")")],
   [Nonterminal("E"); Nonterminal("T"); Nonterminal("F")],
   Nonterminal("S"),
@@ -42,9 +42,9 @@ let test_grammar : grammar =
   (Nonterminal("T"), [Nonterminal("F")]);
   (Nonterminal("F"), [Terminal("("); Nonterminal("E"); Terminal(")")]);
   (Nonterminal("F"), [Terminal("num")]);
-  ]
+  ])
 
-let grammar_productions (_, _, _, p) = p
+let grammar_productions (Grammar (_, _, _, p)) = p
 
 
 let get_next_symbol (Item(dot, (_, symbols))) = List.nth_opt symbols dot
