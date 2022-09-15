@@ -44,6 +44,9 @@ let test_grammar = Grammar (
   (Nonterminal("F"), [Terminal("num")]);
   ])
 
+let grammar_terminals (Grammar (t, _, _, _)) = t
+let grammar_nonterminals (Grammar (_, nt, _, _)) = nt
+let grammar_root (Grammar(_, _, r, _)) = r
 let grammar_productions (Grammar (_, _, _, p)) = p
 
 
@@ -74,6 +77,13 @@ let equal_item_sets i1 i2 =
     |i::is, item_set -> List.mem i i2 && is_subset (is,item_set)
   in
   is_subset (i1, i2) && List.length i1 = List.length i2
+
+let equal_collections c1 c2 =
+  let rec is_subset = function
+    |[], _ -> true
+    |c::cs, item_set -> List.exists (fun c' -> equal_item_sets c c') c2 && is_subset (cs, item_set)
+  in
+  is_subset (c1, c2) && List.length c1 = List.length c2
 
 let closure (g : grammar) items =
   let single_item_closure_step item =
@@ -110,3 +120,26 @@ let goto items symbol grammar =
   ) items
   |> List.map increment_item_dot
   |> closure grammar
+
+let canonical_collection grammar =
+  let initial_items = [Item(0, (Nonterminal("S"), [Nonterminal("E")]))] |> closure grammar in
+  let c = [initial_items] in
+  let symbols = grammar_nonterminals grammar @ grammar_terminals grammar in
+  (* acc is collection *)
+  let goto_from_item_set collection item_set = List.fold_left (fun acc symbol ->
+    match goto item_set symbol grammar with
+      [] -> acc
+      |goto_item_set -> if List.exists (fun iset -> equal_item_sets iset goto_item_set) acc then acc else (goto_item_set::acc)
+  ) collection symbols
+  in
+
+  let update_collection_loop collection = List.fold_left goto_from_item_set collection collection
+  in
+
+  let rec repeat_until_unchanged collection =
+    let next_collection = update_collection_loop collection in
+    if equal_collections next_collection collection then next_collection
+    else repeat_until_unchanged next_collection
+  in
+
+  repeat_until_unchanged c

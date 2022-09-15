@@ -28,4 +28,7 @@ let () =
   |> List.iter Parser.print_item;
   print_endline "--- Closure of Set ---";
   Parser.closure Parser.test_grammar [Parser.Item(2, add_prod)]
-  |> List.iter Parser.print_item
+  |> List.iter Parser.print_item;
+  print_endline "--- Canonical Collection ---";
+  Parser.canonical_collection Parser.test_grammar
+  |> List.iter (fun l -> print_endline "- item set: -"; List.iter Parser.print_item l;);
