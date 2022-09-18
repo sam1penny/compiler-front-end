@@ -92,14 +92,14 @@ T -> T * F .
 (* first set testing *)
 
 let epsilon_grammar = Parser.Grammar (
-  [Parser.Terminal("+"); Parser.Terminal("epsilon")],
+  [Parser.Terminal("+"); Parser.Epsilon],
   [Parser.Nonterminal("E"); Parser.Nonterminal("T")],
   Parser.Nonterminal("S"),
   [
     (Parser.Nonterminal "S", [Parser.Nonterminal "E"]);
     (Parser.Nonterminal "T", [Parser.Nonterminal "E"; Parser.Terminal "+"]);
     (Parser.Nonterminal "E", [Parser.Nonterminal "E"; Parser.Terminal "+"; Parser.Nonterminal "E"]);
-    (Parser.Nonterminal "E", [Parser.Terminal "epsilon"]);
+    (Parser.Nonterminal "E", [Parser.Epsilon]);
   ]
 )
 
@@ -107,9 +107,9 @@ let %expect_test _ =
   Parser.compute_first_sets epsilon_grammar
   |> Parser.print_first_map;
   [%expect{|
-+ : [ + ]
 epsilon : [ epsilon ]
-E : [ + epsilon ]
++ : [ + ]
+E : [ epsilon + ]
 T : [ + ]
   |}]
 

@@ -1,6 +1,8 @@
 type symbol =
   |Terminal of string
   |Nonterminal of string
+  |Epsilon
+  |Dollar (* end marker *)
 
 (* first symbol should be a Nonterminal *)
 type production = symbol * symbol list
@@ -12,6 +14,8 @@ type grammar = Grammar of symbol list * symbol list * symbol * production list
 let string_of_symbol = function
     |Terminal(t) -> t
     |Nonterminal(nt) -> nt
+    |Epsilon -> "epsilon"
+    |Dollar -> "$"
 
 (* the integer is to the left of a symbol in the production. E.g 0, E, [E; +; E] represents E -> .E+E*)
 type item = Item of int * production
@@ -110,9 +114,9 @@ let closure g items =
   in
 
   let next_closure items = List.fold_left (fun acc item -> match get_next_symbol item with
-                      None | Some(Terminal(_)) -> acc
-                      |Some(Nonterminal(_)) -> single_item_closure_step item
+                      Some(Nonterminal(_)) -> single_item_closure_step item
                         |> union acc
+                      |_ -> acc
                         )
                         items items
   in
@@ -185,9 +189,9 @@ let compute_first_sets grammar =
       let rec helper first_map = function
         [] -> SymbolMap.update (production_lhs prod) (
           function
-            None -> let set_with_epsilon = SymbolSet.add (Terminal "epsilon") SymbolSet.empty  in
+            None -> let set_with_epsilon = SymbolSet.add (Epsilon) SymbolSet.empty in
                     Some(set_with_epsilon)
-            |Some(set) -> Some(SymbolSet.add (Terminal "epsilon") set)
+            |Some(set) -> Some(SymbolSet.add (Epsilon) set)
         ) first_map
 
         |s::ss ->
@@ -197,8 +201,8 @@ let compute_first_sets grammar =
             |Some(set) -> set
         )
         in
-        let contains_epsilon = SymbolSet.mem (Terminal "epsilon") s_first_set in
-        let s_first_set = SymbolSet.remove (Terminal "epsilon") s_first_set in
+        let contains_epsilon = SymbolSet.mem (Epsilon) s_first_set in
+        let s_first_set = SymbolSet.remove (Epsilon) s_first_set in
         let new_first_map = SymbolMap.update (production_lhs prod) (
           fun opt_set -> match opt_set with
             None -> Some(s_first_set)
@@ -212,7 +216,7 @@ let compute_first_sets grammar =
     in
 
     match symbol with
-      Terminal(_) -> SymbolMap.update symbol (function
+      Terminal(_) | Epsilon | Dollar -> SymbolMap.update symbol (function
         None -> Some(SymbolSet.add symbol SymbolSet.empty)
         |Some(s) -> Some(s)
       ) first_map
@@ -249,10 +253,10 @@ let compute_follow_sets grammar first_map =
      Returns {epsilon} if the string is empty*)
   let first_of_string first_map symbols =
     let rec helper first_map first_set = function
-      [] -> SymbolSet.add (Terminal "epsilon") first_set
+      [] -> SymbolSet.add (Epsilon) first_set
       |s::ss -> let set = SymbolMap.find s first_map in
-                let contains_epsilon = SymbolSet.mem (Terminal "epsilon") set in
-                let set = SymbolSet.remove (Terminal "epsilon") set in
+                let contains_epsilon = SymbolSet.mem (Epsilon) set in
+                let set = SymbolSet.remove (Epsilon) set in
                 if contains_epsilon then helper first_map (SymbolSet.union first_set set) ss
                 else SymbolSet.union first_set set
     in
@@ -263,8 +267,8 @@ let compute_follow_sets grammar first_map =
     let rec helper follow_map = function
       |[] -> follow_map
       |s::ss when is_nonterminal s -> let set = first_of_string first_map ss in
-      let contains_epsilon = SymbolSet.mem (Terminal "epsilon") set in
-      let set_without_epsilon = SymbolSet.remove (Terminal "epsilon") set in
+      let contains_epsilon = SymbolSet.mem (Epsilon) set in
+      let set_without_epsilon = SymbolSet.remove (Epsilon) set in
 
       let follow_lhs = (
         match SymbolMap.find_opt (production_lhs prod) follow_map with
@@ -301,7 +305,7 @@ let compute_follow_sets grammar first_map =
     else repeat_until_unchanged next_follow_map
   in
 
-  let initial_map = SymbolMap.add (grammar_root grammar) (SymbolSet.add (Terminal "$") SymbolSet.empty) SymbolMap.empty
+  let initial_map = SymbolMap.add (grammar_root grammar) (SymbolSet.add Dollar SymbolSet.empty) SymbolMap.empty
   in
 
   repeat_until_unchanged initial_map
