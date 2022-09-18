@@ -126,3 +126,15 @@ E : [ ( num ]
 F : [ ( num ]
 T : [ ( num ]
     |}]
+
+(* follow set testing *)
+let%expect_test _ =
+Parser.compute_first_sets Parser.test_grammar
+|> Parser.compute_follow_sets Parser.test_grammar
+|> Parser.print_first_map;
+[%expect{|
+E : [ $ ) + ]
+F : [ $ ) * + ]
+S : [ $ ]
+T : [ $ ) * + ]
+|}]

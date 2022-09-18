@@ -239,3 +239,69 @@ let compute_first_sets grammar =
   in
 
   repeat_until_unchanged SymbolMap.empty
+
+let is_nonterminal = function
+  Nonterminal(_) -> true
+  |_ -> false
+
+let compute_follow_sets grammar first_map =
+  (* Returns the first set for a given string of grammar symbols.
+     Returns {epsilon} if the string is empty*)
+  let first_of_string first_map symbols =
+    let rec helper first_map first_set = function
+      [] -> SymbolSet.add (Terminal "epsilon") first_set
+      |s::ss -> let set = SymbolMap.find s first_map in
+                let contains_epsilon = SymbolSet.mem (Terminal "epsilon") set in
+                let set = SymbolSet.remove (Terminal "epsilon") set in
+                if contains_epsilon then helper first_map (SymbolSet.union first_set set) ss
+                else SymbolSet.union first_set set
+    in
+    helper first_map SymbolSet.empty symbols
+  in
+
+  let follow_set_from_production follow_map prod =
+    let rec helper follow_map = function
+      |[] -> follow_map
+      |s::ss when is_nonterminal s -> let set = first_of_string first_map ss in
+      let contains_epsilon = SymbolSet.mem (Terminal "epsilon") set in
+      let set_without_epsilon = SymbolSet.remove (Terminal "epsilon") set in
+
+      let follow_lhs = (
+        match SymbolMap.find_opt (production_lhs prod) follow_map with
+          None -> SymbolSet.empty
+          |Some(set) -> set
+        )
+      in
+
+      let final_set = if contains_epsilon then SymbolSet.union follow_lhs set_without_epsilon else set_without_epsilon
+      in
+
+      helper (SymbolMap.update s (function
+       None -> Some(final_set)
+       |Some(existing_set) -> Some(SymbolSet.union final_set existing_set)
+      ) follow_map) ss
+
+      |_::ss -> helper follow_map ss
+
+    in
+    helper follow_map (production_rhs prod)
+  in
+
+  let update_follow_sets follow_map =
+    List.fold_left (fun map prod ->
+      follow_set_from_production map prod
+      |> SymbolMap.union (fun _ s1 s2 -> Some(SymbolSet.union s1 s2)) map
+    ) follow_map (grammar_productions grammar)
+
+  in
+
+  let rec repeat_until_unchanged follow_map =
+    let next_follow_map = update_follow_sets follow_map in
+    if equal_first_maps follow_map next_follow_map then next_follow_map
+    else repeat_until_unchanged next_follow_map
+  in
+
+  let initial_map = SymbolMap.add (grammar_root grammar) (SymbolSet.add (Terminal "$") SymbolSet.empty) SymbolMap.empty
+  in
+
+  repeat_until_unchanged initial_map
