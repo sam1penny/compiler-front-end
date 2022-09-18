@@ -160,27 +160,94 @@ let canonical_collection grammar =
 
 
 module SymbolSet = Set.Make(struct type t = symbol let compare = compare end)
-let rec first_set grammar symbol =
-  let prod_first acc prod =
-    let rec inner acc = function
-      [] -> SymbolSet.add (Terminal "epsilon") acc
-      |s::ss -> if s = (production_lhs prod) then acc
-      else
-      let s_first = first_set grammar s in
-      if SymbolSet.mem (Terminal "epsilon") s_first then inner (SymbolSet.union acc s_first) ss
-      else (SymbolSet.union acc s_first)
+module SymbolMap = Map.Make(struct type t = symbol let compare = compare end)
+
+let first_map_to_list map = SymbolMap.to_seq map
+|> List.of_seq
+|> List.map (fun (symbol, first_set) -> (symbol, SymbolSet.to_seq first_set |> List.of_seq))
+
+let print_first_map map =
+  first_map_to_list map
+  |> List.iter (fun (s, slist) ->
+      string_of_symbol s
+      |> Printf.printf "%s : [ ";
+      List.map (fun s -> string_of_symbol s) slist
+      |> List.iter (Printf.printf "%s ");
+      print_endline "]"
+    )
+
+let equal_first_maps m1 m2 = SymbolMap.equal (fun s1 s2 -> SymbolSet.equal s1 s2) m1 m2
+
+let compute_first_sets grammar =
+
+  let first_set_of_symbol symbol first_map =
+    let first_set_from_production first_map prod =
+      let rec helper first_map = function
+        [] -> SymbolMap.update (production_lhs prod) (
+          function
+            None -> let set_with_epsilon = SymbolSet.add (Terminal "epsilon") SymbolSet.empty  in
+                    Some(set_with_epsilon)
+            |Some(set) -> Some(SymbolSet.add (Terminal "epsilon") set)
+        ) first_map
+
+        |s::ss ->
+        let s_first_set = (
+          match SymbolMap.find_opt s first_map with
+            None -> SymbolSet.empty
+            |Some(set) -> set
+        )
+        in
+        let contains_epsilon = SymbolSet.mem (Terminal "epsilon") s_first_set in
+        let s_first_set = SymbolSet.remove (Terminal "epsilon") s_first_set in
+        let new_first_map = SymbolMap.update (production_lhs prod) (
+          fun opt_set -> match opt_set with
+            None -> Some(s_first_set)
+            |Some(set) -> Some(SymbolSet.union set s_first_set)
+        ) first_map
+        in
+        if contains_epsilon then helper new_first_map ss
+        else new_first_map
+      in
+      helper first_map (production_rhs prod)
     in
-    inner acc (production_rhs prod)
+
+    match symbol with
+      Terminal(_) -> SymbolMap.update symbol (function
+        None -> Some(SymbolSet.add symbol SymbolSet.empty)
+        |Some(s) -> Some(s)
+      ) first_map
+      |Nonterminal(_) -> List.fold_left(fun acc prod ->
+        first_set_from_production acc prod
+        |> SymbolMap.union (fun _ s1 s2 -> Some(SymbolSet.union s1 s2)) acc
+      ) first_map (get_productions grammar symbol)
+
   in
 
-  match symbol with
-    Terminal(_) -> SymbolSet.add symbol SymbolSet.empty
-    |Nonterminal(_) -> List.fold_left(fun acc prod ->
-      prod_first acc prod
-      |> SymbolSet.union acc
-    ) SymbolSet.empty (get_productions grammar symbol)
+  let update_first_sets first_map =
+    List.fold_left (fun first_map symbol ->
+      first_set_of_symbol symbol first_map
+      |> SymbolMap.union (fun _ s1 s2 -> Some(SymbolSet.union s1 s2)) first_map
+    ) first_map (grammar_terminals grammar @ grammar_nonterminals grammar)
+  in
 
-let first_list grammar symbol =
-  first_set grammar symbol
-  |> SymbolSet.to_seq
-  |> List.of_seq
+
+  let rec repeat_until_unchanged first_map =
+    let next_first_map = update_first_sets first_map in
+    if equal_first_maps first_map next_first_map then next_first_map
+    else repeat_until_unchanged next_first_map
+
+  in
+
+  repeat_until_unchanged SymbolMap.empty
+
+let epsilon_grammar = Grammar (
+  [Terminal("+"); Terminal("epsilon")],
+  [Nonterminal("E"); Nonterminal("T")],
+  Nonterminal("S"),
+  [
+    (Nonterminal "S", [Nonterminal "E"]);
+    (Nonterminal "T", [Nonterminal "E"; Terminal "+"]);
+    (Nonterminal "E", [Nonterminal "E"; Terminal "+"; Nonterminal "E"]);
+    (Nonterminal "E", [Terminal "epsilon"]);
+  ]
+)

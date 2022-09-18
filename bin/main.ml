@@ -36,9 +36,5 @@ let () =
   Parser.canonical_collection Parser.test_grammar
   |> List.iter (fun l -> print_endline "- item set: -"; List.iter Parser.print_item l;);
   print_endline "--- First set ---";
-  Printf.printf "[ ";
-  Parser.first_list Parser.test_grammar (Parser.Nonterminal "E")
-  |> List.map Parser.string_of_symbol
-  |> List.iter (Printf.printf "%s ");
-  Printf.printf "]";
-  print_endline ""
+  Parser.compute_first_sets Parser.epsilon_grammar
+  |> Parser.print_first_map;
