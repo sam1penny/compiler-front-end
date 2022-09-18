@@ -1,5 +1,5 @@
 let read () =
-  let f = open_in "./test/test.kl" in
+  let f = open_in "./resources/test.kl" in
   let rec get_input line acc =
     try
       match input_char f with

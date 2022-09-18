@@ -239,15 +239,3 @@ let compute_first_sets grammar =
   in
 
   repeat_until_unchanged SymbolMap.empty
-
-let epsilon_grammar = Grammar (
-  [Terminal("+"); Terminal("epsilon")],
-  [Nonterminal("E"); Nonterminal("T")],
-  Nonterminal("S"),
-  [
-    (Nonterminal "S", [Nonterminal "E"]);
-    (Nonterminal "T", [Nonterminal "E"; Terminal "+"]);
-    (Nonterminal "E", [Nonterminal "E"; Terminal "+"; Nonterminal "E"]);
-    (Nonterminal "E", [Terminal "epsilon"]);
-  ]
-)
