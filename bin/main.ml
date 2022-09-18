@@ -1,12 +1,12 @@
 open Comp
 
-
 (* Lexer testing
 let () =
-  Input.read ()
+  Input.read "./resources/test.kl"
   |> Lexer.get_all_tokens
-  |> List.map (fun (line, t) -> sprintf "%d, %s" line (Lexer.string_of_token t))
-  |> List.iter (printf "[%s]")
+  |> List.map (fun (line, t) -> Printf.sprintf "%d, %s" line (Lexer.string_of_token t))
+  |> List.iter (Printf.printf "[%s]");
+  print_endline ""
 *)
 
 let () =
