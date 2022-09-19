@@ -107,9 +107,9 @@ let get_productions grammar nt =
 let closure g items =
   let single_item_closure_step item =
     match get_next_symbol item with
-      None | Some(Terminal(_)) -> []
-      |Some(nt) -> get_productions g nt
+      |Some(Nonterminal(_) as nt) -> get_productions g nt
         |> List.map (fun prod -> Item(0, prod))
+      |None | Some(_) -> []
 
   in
 
@@ -309,3 +309,97 @@ let compute_follow_sets grammar first_map =
   in
 
   repeat_until_unchanged initial_map
+
+type action =
+  |Shift of int (* int represents state - position in canonical collection *)
+  |Reduce of int (* int represents the position of the production in the list of productions *)
+  (* TODO: change representation of productions to a functional array for fast lookup,
+     or store the production in the action *)
+  |Accept
+  |Error
+
+let string_of_action = function
+  Shift(i) -> Printf.sprintf "shift %d" i
+  |Reduce(i) -> Printf.sprintf "reduce %d" i
+  |Accept -> "accept"
+  |Error -> "error"
+
+module ActionMap = Map.Make(struct type t = int * symbol let compare = compare end)
+
+let print_action_map map =
+  ActionMap.to_seq map
+  |> List.of_seq
+  |> List.map (fun ((state, symbol), action ) -> string_of_int state, string_of_symbol symbol, string_of_action action)
+  |> List.iter (fun (state, symbol, action) -> Printf.printf "ACTION[%s, %s] = %s\n" state symbol action)
+
+exception Grammar_Not_SLR
+
+let set_with_error_on_conflict map key action =
+  ActionMap.update key (
+    function
+      None -> Some(action)
+      |Some(action') when action = action' -> Some(action)
+      |_ -> raise Grammar_Not_SLR
+  ) map
+
+let get_with_error_default map key =
+  match ActionMap.find_opt key map with
+    None -> Error
+    |Some(action) -> action
+
+let index_of element list =
+  List.mapi (fun i ele -> (i, ele)) list
+  |> List.find (fun (_, ele) -> ele = element)
+  |> fun (i, _) -> i
+
+
+let compute_action_table grammar collection follow_map =
+
+  let add_shifts action_map =
+    List.fold_left(
+      fun (i, action_map) item_set ->
+        List.fold_left (fun action_map item ->
+          match get_next_symbol item with
+            Some(Terminal(s)) -> let next_state = index_of (goto item_set (Terminal s) grammar) collection in
+            set_with_error_on_conflict action_map (i, (Terminal s)) (Shift next_state)
+            |_ -> action_map
+        ) action_map item_set
+        |> fun map -> (i+1, map)
+    ) (0, action_map) collection
+    |> fun (_, map) -> map
+  in
+
+  let add_reduces action_map =
+    List.fold_left(
+      fun (i, action_map) item_set ->
+        List.fold_left(
+          fun action_map (Item(dot, prod)) ->
+            match production_lhs prod with
+              Nonterminal "S" -> action_map
+              |_ -> if dot != List.length (production_rhs prod) then action_map
+              else List.fold_left (fun action_map symbol ->
+                let index = index_of prod (grammar_productions grammar) in
+                set_with_error_on_conflict action_map (i, symbol) (Reduce index)
+              ) action_map (SymbolMap.find (production_lhs prod) follow_map |> SymbolSet.to_seq |> List.of_seq)
+
+        ) action_map item_set
+        |> fun map -> (i+1, map)
+    ) (0, action_map) collection
+    |> fun (_, map) -> map
+  in
+
+  let end_item = Item(1, (Nonterminal("S"), [Nonterminal("E")]))
+  in
+  let add_accept action_map =
+    List.fold_left (
+    fun (i, action_map) item_set ->
+      match List.find_opt ((=)end_item) item_set with
+        None -> (i+1, action_map)
+        |Some(_) -> (i+1, set_with_error_on_conflict action_map (i, Dollar) Accept)
+      ) (0, action_map) collection
+    |> fun (_, map) -> map
+  in
+
+  add_accept ActionMap.empty
+  |> add_shifts
+  |> add_reduces
