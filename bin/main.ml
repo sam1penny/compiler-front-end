@@ -25,3 +25,9 @@ let () =
   |> List.sort compare in
   Parser.compute_action_table Parser.test_grammar col follow_set
   |> Parser.print_action_map;
+  print_endline "--- PARSING ---";
+  "( num + num + num ) * num"
+  |> String.split_on_char ' '
+  |> Parser.parse Parser.test_grammar
+  |> Printf.printf "Parsing result: %B \n";
+  print_endline "-- END --"

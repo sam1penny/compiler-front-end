@@ -403,3 +403,39 @@ let compute_action_table grammar collection follow_map =
   add_accept ActionMap.empty
   |> add_shifts
   |> add_reduces
+
+let goto_state state symbol grammar collection =
+  let current_set = List.nth collection state in
+  index_of (goto current_set symbol grammar) collection
+
+exception Parsing_Error
+let parse grammar input =
+  let collection = canonical_collection grammar |> List.sort compare in
+  let follow_map = compute_first_sets grammar
+  |> compute_follow_sets grammar in
+  let action_table = compute_action_table grammar collection follow_map in
+
+
+  let rec loop stack input =
+    Printf.printf "stack: ";
+    List.iter (fun s -> Printf.printf "%d " s) stack;
+    print_endline "";
+    Printf.printf "input: ";
+    List.iter (fun s -> Printf.printf "%s " (string_of_symbol s)) input;
+    print_endline "";
+    match input with
+      [] -> raise Parsing_Error
+      |s::ss -> print_endline (string_of_action (get_with_error_default action_table (List.hd stack, s)));
+      match get_with_error_default action_table (List.hd stack, s) with
+                  Shift(t) -> loop (t::stack) ss
+                  |Reduce(t) -> let prod = List.nth (grammar_productions grammar) t in
+                                let new_stack = Utils.drop (production_rhs prod |> List.length) stack in
+                                let next_state = goto_state (List.hd new_stack) (production_lhs prod) grammar collection in
+                                print_production prod;
+                                loop (next_state::new_stack) (s::ss)
+                  |Accept -> true
+                  |Error -> false
+  in
+
+  (List.map (fun s -> Terminal s) input) @ [Dollar]
+  |> loop [0]
