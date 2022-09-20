@@ -1,26 +1,18 @@
 (lang dune 3.4)
 
-(name comp)
+(name compiler)
 
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github sam1penny/compiler))
 
-(authors "Author Name")
-
-(maintainers "Maintainer Name")
+(authors "Sam Penny")
 
 (license LICENSE)
 
-(documentation https://url/to/documentation)
-
 (package
- (name comp)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml dune)
- (tags
-  (topics "to describe" your project)))
+ (name compiler)
+ (depends ocaml dune))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
