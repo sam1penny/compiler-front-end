@@ -1,5 +1,5 @@
 (library
- (name comp)
+ (name compiler)
   (inline_tests)
   (preprocess (pps ppx_expect))
 )

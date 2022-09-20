@@ -1,4 +1,4 @@
-open Comp
+open Compiler
 
 (* Lexer testing
 let () =
