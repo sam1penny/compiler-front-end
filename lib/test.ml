@@ -2,7 +2,7 @@
 (* testing productions / items *)
 let root_prod = (Parser.Nonterminal("S"), [Parser.Nonterminal("E")])
 let initial_item = Parser.Item(0, root_prod)
-let add_prod = (Parser.Nonterminal("E"), [Parser.Nonterminal("E"); Parser.Terminal("+"); Parser.Nonterminal("T")])
+let add_prod = (Parser.Nonterminal("E"), [Parser.Nonterminal("E"); Parser.Terminal(PLUS); Parser.Nonterminal("T")])
 let test_items = [Parser.Item(1, root_prod); Parser.Item(1, add_prod)]
 
 (* closure of the root production *)
@@ -14,8 +14,8 @@ let%expect_test _ =
   [%expect{|
 E -> . E + T
 E -> . T
-F -> . ( E )
 F -> . num
+F -> . ( E )
 S -> . E
 T -> . F
 T -> . T * F
@@ -23,12 +23,12 @@ T -> . T * F
 
 (* goto testing (example from the 'dragon' compilers book) *)
 let %expect_test _ =
-  Parser.goto test_items (Terminal "+") Parser.test_grammar
+  Parser.goto test_items (Terminal PLUS) Parser.test_grammar
   |> List.sort compare
   |> List.iter Parser.print_item;
   [%expect{|
-F -> . ( E )
 F -> . num
+F -> . ( E )
 T -> . F
 T -> . T * F
 E -> E + . T
@@ -43,28 +43,28 @@ let %expect_test _ =
 - item set 0: -
 E -> . E + T
 E -> . T
-F -> . ( E )
 F -> . num
+F -> . ( E )
 S -> . E
 T -> . F
 T -> . T * F
 - item set 1: -
 E -> . E + T
 E -> . T
-F -> . ( E )
 F -> . num
+F -> . ( E )
 T -> . F
 T -> . T * F
 F -> ( . E )
 - item set 2: -
-F -> . ( E )
 F -> . num
+F -> . ( E )
 T -> . F
 T -> . T * F
 E -> E + . T
 - item set 3: -
-F -> . ( E )
 F -> . num
+F -> . ( E )
 T -> T * . F
 - item set 4: -
 E -> E . + T
@@ -92,13 +92,13 @@ T -> T * F .
 (* first set testing *)
 
 let epsilon_grammar = Parser.Grammar (
-  [Parser.Terminal("+"); Parser.Epsilon],
+  [Parser.Terminal(PLUS); Parser.Epsilon],
   [Parser.Nonterminal("E"); Parser.Nonterminal("T")],
   Parser.Nonterminal("S"),
   [
     (Parser.Nonterminal "S", [Parser.Nonterminal "E"]);
-    (Parser.Nonterminal "T", [Parser.Nonterminal "E"; Parser.Terminal "+"]);
-    (Parser.Nonterminal "E", [Parser.Nonterminal "E"; Parser.Terminal "+"; Parser.Nonterminal "E"]);
+    (Parser.Nonterminal "T", [Parser.Nonterminal "E"; Parser.Terminal PLUS]);
+    (Parser.Nonterminal "E", [Parser.Nonterminal "E"; Parser.Terminal PLUS; Parser.Nonterminal "E"]);
     (Parser.Nonterminal "E", [Parser.Epsilon]);
   ]
 )
@@ -117,14 +117,14 @@ let %expect_test _ =
   Parser.compute_first_sets Parser.test_grammar
     |> Parser.print_first_map;
     [%expect{|
++ : [ + ]
+* : [ * ]
+num : [ num ]
 ( : [ ( ]
 ) : [ ) ]
-* : [ * ]
-+ : [ + ]
-num : [ num ]
-E : [ ( num ]
-F : [ ( num ]
-T : [ ( num ]
+E : [ num ( ]
+F : [ num ( ]
+T : [ num ( ]
     |}]
 
 (* follow set testing *)
@@ -133,8 +133,8 @@ Parser.compute_first_sets Parser.test_grammar
 |> Parser.compute_follow_sets Parser.test_grammar
 |> Parser.print_first_map;
 [%expect{|
-E : [ $ ) + ]
-F : [ $ ) * + ]
+E : [ $ + ) ]
+F : [ $ + * ) ]
 S : [ $ ]
-T : [ $ ) * + ]
+T : [ $ + * ) ]
 |}]

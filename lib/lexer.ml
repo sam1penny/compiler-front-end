@@ -1,24 +1,4 @@
-type state = LexerState of (Regex.regex * (char list -> state)) list
-
-type token =
-  | PLUS
-  | MINUS
-  | CARAT
-  | COS
-  | EXCLAMATION_MARK
-  | NUM of string
-  | WS
-  | EOF
-
-let string_of_token = function
-  | PLUS -> "+"
-  | MINUS -> "-"
-  | CARAT -> "^"
-  | COS -> "cos"
-  | EXCLAMATION_MARK -> "!"
-  | NUM(s) -> Printf.sprintf "%s" s
-  | WS -> "WS"
-  | EOF -> "EOF"
+open Token
 
 type rule = Regex.regex * (char list -> token)
 
@@ -43,14 +23,15 @@ let number =  Regex.concat_list [ optplus; floating; optexp]
 let whitespace = Regex.one_or_more(Regex.union_string "\n \t")
 
 let rules : rule list = [
-  Regex.Character('+'), (fun _ -> PLUS) ;
-  Regex.Character('-'), (fun _ -> MINUS) ;
-  Regex.Character('^'), (fun _ -> CARAT) ;
-  Regex.concat_string "cos", (fun _ -> COS) ;
-  Regex.Character('!'), (fun _ -> EXCLAMATION_MARK) ;
-  number, (fun x -> NUM(Utils.chars_to_string x)) ;
-  Regex.Character('\004'), ( fun _ -> EOF) ;
-  whitespace, (fun _ -> WS) ;
+  Regex.Character('+'), (fun _ -> Token(PLUS, None)) ;
+  Regex.Character('-'), (fun _ -> Token(MINUS, None)) ;
+  Regex.Character('*'), (fun _ -> Token(MULT, None)) ; (* TODO: delete at some point, not used in summer work grammar, however used in testing grammar *)
+  Regex.Character('^'), (fun _ -> Token(CARAT, None)) ;
+  Regex.concat_string "cos", (fun _ -> Token(COS, None)) ;
+  Regex.Character('!'), (fun _ -> Token(EXCLAMATION_MARK, None)) ;
+  number, (fun x -> Token(NUM, Some(Utils.chars_to_string x))) ;
+  Regex.Character('\004'), ( fun _ -> Token(EOF, None)) ;
+  whitespace, (fun _ -> Token(WS, None)) ;
 ]
 
 (* get all regular expressions that are not in the dead state -
@@ -96,7 +77,7 @@ let rec get_token stream =
       None -> raise No_Match
       |Some(action, lexeme, line, stream) -> match action (List.rev lexeme) with
                                         (* If whitespace is matched, call get_token again to get a non-ws token*)
-                                        WS -> get_token stream
+                                        Token(WS, _) -> get_token stream
                                         |token -> (line, token), stream
 
 let rec get_all_tokens stream =

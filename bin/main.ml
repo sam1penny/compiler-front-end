@@ -1,5 +1,6 @@
 open Compiler
 
+
 (* Lexer testing
 let () =
   Input.read "./resources/test.kl"
@@ -26,8 +27,9 @@ let () =
   Parser.compute_action_table Parser.test_grammar col follow_set
   |> Parser.print_action_map;
   print_endline "--- PARSING ---";
-  "( num + num + num ) * num"
-  |> String.split_on_char ' '
+  Input.read "./resources/test.kl"
+  |> Lexer.get_all_tokens
+  |> List.map (fun (_, Token.Token(ttype, _)) -> ttype) (* TODO: use line number and token attribute in parser *)
   |> Parser.parse Parser.test_grammar
   |> Printf.printf "Parsing result: %B \n";
   print_endline "-- END --"

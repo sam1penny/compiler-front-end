@@ -1,5 +1,7 @@
+open Token
+
 type symbol =
-  |Terminal of string
+  |Terminal of token_type
   |Nonterminal of string
   |Epsilon
   |Dollar (* end marker *)
@@ -12,7 +14,7 @@ type grammar = Grammar of symbol list * symbol list * symbol * production list
 
 
 let string_of_symbol = function
-    |Terminal(t) -> t
+    |Terminal(t) -> string_of_token_type t
     |Nonterminal(nt) -> nt
     |Epsilon -> "epsilon"
     |Dollar -> "$"
@@ -43,17 +45,17 @@ let print_production (head, body) =
 
 
 let test_grammar = Grammar (
-  [Terminal("+"); Terminal("*"); Terminal("num"); Terminal("("); Terminal(")")],
+  [Terminal(PLUS); Terminal(MULT); Terminal(NUM); Terminal(LPAREN); Terminal(RPAREN)],
   [Nonterminal("E"); Nonterminal("T"); Nonterminal("F")],
   Nonterminal("S"),
   [
   (Nonterminal("S"), [Nonterminal("E")]);
-  (Nonterminal("E"), [Nonterminal("E"); Terminal("+"); Nonterminal("T")]);
+  (Nonterminal("E"), [Nonterminal("E"); Terminal(PLUS); Nonterminal("T")]);
   (Nonterminal("E"), [Nonterminal("T")]);
-  (Nonterminal("T"), [Nonterminal("T"); Terminal("*"); Nonterminal("F")]);
+  (Nonterminal("T"), [Nonterminal("T"); Terminal(MULT); Nonterminal("F")]);
   (Nonterminal("T"), [Nonterminal("F")]);
-  (Nonterminal("F"), [Terminal("("); Nonterminal("E"); Terminal(")")]);
-  (Nonterminal("F"), [Terminal("num")]);
+  (Nonterminal("F"), [Terminal(LPAREN); Nonterminal("E"); Terminal(RPAREN)]);
+  (Nonterminal("F"), [Terminal(NUM)]);
   ])
 
 let production_lhs (head, _) = head
@@ -437,5 +439,8 @@ let parse grammar input =
                   |Error -> false
   in
 
-  (List.map (fun s -> Terminal s) input) @ [Dollar]
+  List.map (function
+    EOF -> Dollar
+    |s -> Terminal s
+  ) input
   |> loop [0]
