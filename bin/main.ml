@@ -29,7 +29,6 @@ let () =
   print_endline "--- PARSING ---";
   Input.read "./resources/test.kl"
   |> Lexer.get_all_tokens
-  |> List.map (fun (_, Token.Token(ttype, _)) -> ttype) (* TODO: use line number and token attribute in parser *)
   |> Parser.parse Parser.test_grammar
   |> Printf.printf "Parsing result: %B \n";
   print_endline "-- END --"

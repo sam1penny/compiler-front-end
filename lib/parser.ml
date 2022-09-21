@@ -410,7 +410,25 @@ let goto_state state symbol grammar collection =
   let current_set = List.nth collection state in
   index_of (goto current_set symbol grammar) collection
 
+let token_from_symbol = function
+  Terminal(ttype) -> ttype
+  |Dollar -> EOF
+  |s -> raise @@ Invalid_argument(string_of_symbol s)
+
+
 exception Parsing_Error
+exception Syntax_Error of int * token
+
+let () =
+  Printexc.register_printer
+    (function
+      | Syntax_Error (line, token) -> Some (Printf.sprintf {|
+    Line %d
+    Syntax Error: %s|} line (string_of_token token)
+        )
+      | _ -> None (* for other exceptions *)
+    )
+
 let parse grammar input =
   let collection = canonical_collection grammar |> List.sort compare in
   let follow_map = compute_first_sets grammar
@@ -423,24 +441,24 @@ let parse grammar input =
     List.iter (fun s -> Printf.printf "%d " s) stack;
     print_endline "";
     Printf.printf "input: ";
-    List.iter (fun s -> Printf.printf "%s " (string_of_symbol s)) input;
+    List.iter (fun (_, s, _) -> Printf.printf "%s " (string_of_symbol s)) input;
     print_endline "";
     match input with
-      [] -> raise Parsing_Error
-      |s::ss -> print_endline (string_of_action (get_with_error_default action_table (List.hd stack, s)));
-      match get_with_error_default action_table (List.hd stack, s) with
+      [] -> raise Parsing_Error (* should be impossible to reach this state, given a valid input containing EOF *)
+      |(line, symbol, attr)::ss -> print_endline (string_of_action (get_with_error_default action_table (List.hd stack, symbol)));
+      match get_with_error_default action_table (List.hd stack, symbol) with
                   Shift(t) -> loop (t::stack) ss
                   |Reduce(t) -> let prod = List.nth (grammar_productions grammar) t in
                                 let new_stack = Utils.drop (production_rhs prod |> List.length) stack in
                                 let next_state = goto_state (List.hd new_stack) (production_lhs prod) grammar collection in
                                 print_production prod;
-                                loop (next_state::new_stack) (s::ss)
+                                loop (next_state::new_stack) ((line, symbol, attr)::ss)
                   |Accept -> true
-                  |Error -> false
+                  |Error -> raise (Syntax_Error(line, Token(token_from_symbol symbol, attr)))
   in
 
   List.map (function
-    EOF -> Dollar
-    |s -> Terminal s
+    (line, Token(EOF, attr)) -> (line, Dollar, attr)
+    |(line, Token(ttype, attr)) -> (line, Terminal ttype, attr)
   ) input
   |> loop [0]
