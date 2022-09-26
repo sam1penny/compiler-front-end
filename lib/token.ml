@@ -1,7 +1,7 @@
 type token_type =
   | PLUS
   | MINUS
-  | MULT (* TODO: delete at some point, not used in summer work grammar, however used in testing grammar *)
+  | MULT (* delete at some point: used in parser testing, not in summer work grammar *)
   | CARAT
   | COS
   | EXCLAMATION_MARK

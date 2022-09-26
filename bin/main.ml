@@ -29,7 +29,7 @@ let () =
   print_endline "--- PARSING ---";
   Input.read "./resources/test.kl"
   |> Lexer.get_all_tokens
-  |> Parser.parse Parser.test_grammar
+  |> Parser.parse Parser.real_grammar
   |> Parser.tree_to_string
   |> print_endline;
   print_endline "-- END --"

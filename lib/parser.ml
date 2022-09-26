@@ -43,20 +43,41 @@ let print_production (head, body) =
   |> List.iter (Printf.printf "%s ");
   print_endline ""
 
-
 let test_grammar = Grammar (
   [Terminal(PLUS); Terminal(MULT); Terminal(NUM); Terminal(LPAREN); Terminal(RPAREN)],
   [Nonterminal("E"); Nonterminal("T"); Nonterminal("F")],
   Nonterminal("S"),
-  [
-  (Nonterminal("S"), [Nonterminal("E")]);
+  [(Nonterminal("S"), [Nonterminal("E")]);
   (Nonterminal("E"), [Nonterminal("E"); Terminal(PLUS); Nonterminal("T")]);
   (Nonterminal("E"), [Nonterminal("T")]);
   (Nonterminal("T"), [Nonterminal("T"); Terminal(MULT); Nonterminal("F")]);
   (Nonterminal("T"), [Nonterminal("F")]);
   (Nonterminal("F"), [Terminal(LPAREN); Nonterminal("E"); Terminal(RPAREN)]);
-  (Nonterminal("F"), [Terminal(NUM)]);
-  ])
+  (Nonterminal("F"), [Terminal(NUM)])];
+)
+
+let real_grammar = Grammar(
+  [Terminal PLUS; Terminal MINUS; Terminal CARAT; Terminal COS; Terminal LPAREN; Terminal RPAREN;
+  Terminal EXCLAMATION_MARK; Terminal NUM],
+  [Nonterminal "add"; Nonterminal "sub"; Nonterminal "exp"; Nonterminal "cosine";
+  Nonterminal "factorial"; Nonterminal "factor"],
+  Nonterminal "S",
+  [
+    (Nonterminal("S"), [Nonterminal("add")]);
+    (Nonterminal "add", [Nonterminal "add"; Terminal PLUS; Nonterminal "sub"]);
+    (Nonterminal "add", [Nonterminal "sub"]);
+    (Nonterminal "sub", [Nonterminal "sub"; Terminal MINUS; Nonterminal "exp"]);
+    (Nonterminal "sub", [Nonterminal "exp"]);
+    (Nonterminal "exp", [Nonterminal "cosine"; Terminal CARAT; Nonterminal "exp"]);
+    (Nonterminal "exp", [Nonterminal "cosine"]);
+    (Nonterminal "cosine", [Terminal COS; Nonterminal "cosine"]);
+    (Nonterminal "cosine", [Nonterminal "factorial"]);
+    (Nonterminal "factorial", [Nonterminal "factorial"; Terminal EXCLAMATION_MARK]);
+    (Nonterminal "factorial", [Nonterminal "factor"]);
+    (Nonterminal "factor", [Terminal LPAREN; Nonterminal "add"; Terminal RPAREN]);
+    (Nonterminal "factor", [Terminal NUM]);
+  ]
+)
 
 let production_lhs (head, _) = head
 let production_rhs (_, body) = body
@@ -106,6 +127,13 @@ let get_productions grammar nt =
   grammar_productions grammar
   |> List.filter(fun (prod_head, _) -> prod_head = nt)
 
+exception Improper_Grammar of string
+let get_root_production (Grammar(_, _, root, _) as g) =
+  match get_productions g root with
+    [] -> raise @@ Improper_Grammar "No start production!"
+    |[prod] -> prod
+    |_ -> raise @@ Improper_Grammar "Mutliple start productions!"
+
 let closure g items =
   let single_item_closure_step item =
     match get_next_symbol item with
@@ -142,7 +170,7 @@ let goto items symbol grammar =
   |> closure grammar
 
 let canonical_collection grammar =
-  let initial_items = [Item(0, (Nonterminal("S"), [Nonterminal("E")]))] |> closure grammar in
+  let initial_items = [Item(0, get_root_production grammar)] |> closure grammar in
   let c = [initial_items] in
   let symbols = grammar_nonterminals grammar @ grammar_terminals grammar in
   (* acc is collection *)
@@ -355,7 +383,7 @@ let index_of element list =
   |> fun (i, _) -> i
 
 
-let compute_action_table grammar collection follow_map =
+let compute_action_table (Grammar(_, _, root_symbol, _) as grammar) collection follow_map =
 
   let add_shifts action_map =
     List.fold_left(
@@ -377,7 +405,7 @@ let compute_action_table grammar collection follow_map =
         List.fold_left(
           fun action_map (Item(dot, prod)) ->
             match production_lhs prod with
-              Nonterminal "S" -> action_map
+              |s when s = root_symbol -> action_map
               |_ -> if dot != List.length (production_rhs prod) then action_map
               else List.fold_left (fun action_map symbol ->
                 let index = index_of prod (grammar_productions grammar) in
@@ -390,7 +418,7 @@ let compute_action_table grammar collection follow_map =
     |> fun (_, map) -> map
   in
 
-  let end_item = Item(1, (Nonterminal("S"), [Nonterminal("E")]))
+  let end_item = Item(1, get_root_production grammar)
   in
   let add_accept action_map =
     List.fold_left (

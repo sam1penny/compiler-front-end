@@ -23,9 +23,10 @@ let number =  Regex.concat_list [ optplus; floating; optexp]
 let whitespace = Regex.one_or_more(Regex.union_string "\n \t")
 
 let rules : rule list = [
+  Regex.Character('('), (fun _ -> Token(LPAREN, None)) ;
+  Regex.Character(')'), (fun _ -> Token(RPAREN, None)) ;
   Regex.Character('+'), (fun _ -> Token(PLUS, None)) ;
   Regex.Character('-'), (fun _ -> Token(MINUS, None)) ;
-  Regex.Character('*'), (fun _ -> Token(MULT, None)) ; (* TODO: delete at some point, not used in summer work grammar, however used in testing grammar *)
   Regex.Character('^'), (fun _ -> Token(CARAT, None)) ;
   Regex.concat_string "cos", (fun _ -> Token(COS, None)) ;
   Regex.Character('!'), (fun _ -> Token(EXCLAMATION_MARK, None)) ;
