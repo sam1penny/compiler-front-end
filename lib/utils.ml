@@ -12,6 +12,6 @@ let rec drop i = function
 
 let chars_to_string clist = List.to_seq clist |> String.of_seq;;
 
-let default def = function
+let unwrap_or def = function
     None -> def
     |Some(s) -> s

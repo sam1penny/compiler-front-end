@@ -27,4 +27,4 @@ let string_of_token_type = function
 type token = Token of token_type * string option
 
 let string_of_token = function
-  | Token(ttype, attr) -> Printf.sprintf "%s:%s" (string_of_token_type ttype) (Utils.default "none" attr)
+  | Token(ttype, attr) -> Printf.sprintf "%s:%s" (string_of_token_type ttype) (Utils.unwrap_or "none" attr)

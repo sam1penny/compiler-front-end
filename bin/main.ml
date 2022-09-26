@@ -30,5 +30,6 @@ let () =
   Input.read "./resources/test.kl"
   |> Lexer.get_all_tokens
   |> Parser.parse Parser.test_grammar
-  |> Printf.printf "Parsing result: %B \n";
+  |> Parser.tree_to_string
+  |> print_endline;
   print_endline "-- END --"

@@ -429,6 +429,43 @@ let () =
       | _ -> None (* for other exceptions *)
     )
 
+
+type tree = Br of symbol * tree list | Lf of token (* Nonterminal: [trees] *)
+
+let rec iter_with_last f = function
+  [] -> ()
+  |[x] -> f true x
+  |x::xs -> f false x; iter_with_last f xs
+
+let tree_to_buffer buf t =
+  let rec print_root indent = function
+    Lf(t) -> Printf.bprintf buf "%s\n" (Token.string_of_token t);
+    |Br(s, children) ->
+      Printf.bprintf buf "%s\n" (string_of_symbol s);
+      iter_with_last (print_child indent) children
+  and print_child indent is_last x =
+    let line =
+      if is_last then
+        "└── "
+      else
+        "├── "
+    in
+    Printf.bprintf buf "%s%s" indent line;
+    let extra_indent =
+      if is_last then
+        "    "
+      else
+        "│   "
+    in
+    print_root (indent ^ extra_indent) x
+  in
+  print_root "" t
+
+let tree_to_string x =
+  let buf = Buffer.create 1000 in
+  tree_to_buffer buf x;
+  Buffer.contents buf
+
 let parse grammar input =
   let collection = canonical_collection grammar |> List.sort compare in
   let follow_map = compute_first_sets grammar
@@ -436,7 +473,7 @@ let parse grammar input =
   let action_table = compute_action_table grammar collection follow_map in
 
 
-  let rec loop stack input =
+  let rec loop stack symbols input =
     Printf.printf "stack: ";
     List.iter (fun s -> Printf.printf "%d " s) stack;
     print_endline "";
@@ -447,13 +484,17 @@ let parse grammar input =
       [] -> raise Parsing_Error (* should be impossible to reach this state, given a valid input containing EOF *)
       |(line, symbol, attr)::ss -> print_endline (string_of_action (get_with_error_default action_table (List.hd stack, symbol)));
       match get_with_error_default action_table (List.hd stack, symbol) with
-                  Shift(t) -> loop (t::stack) ss
+                  Shift(t) -> loop (t::stack) (Lf(Token(token_from_symbol symbol, attr))::symbols) ss
                   |Reduce(t) -> let prod = List.nth (grammar_productions grammar) t in
-                                let new_stack = Utils.drop (production_rhs prod |> List.length) stack in
+                                let production_length = List.length @@ production_rhs prod in
+                                let new_stack = Utils.drop production_length stack in
                                 let next_state = goto_state (List.hd new_stack) (production_lhs prod) grammar collection in
+                                let taken_symbols = Utils.take production_length symbols in
+                                let new_symbols = Utils.drop production_length symbols in
+                                let new_tree = Br((production_lhs prod), taken_symbols) in
                                 print_production prod;
-                                loop (next_state::new_stack) ((line, symbol, attr)::ss)
-                  |Accept -> true
+                                loop (next_state::new_stack) (new_tree::new_symbols) ((line, symbol, attr)::ss)
+                  |Accept -> List.hd symbols
                   |Error -> raise (Syntax_Error(line, Token(token_from_symbol symbol, attr)))
   in
 
@@ -461,4 +502,4 @@ let parse grammar input =
     (line, Token(EOF, attr)) -> (line, Dollar, attr)
     |(line, Token(ttype, attr)) -> (line, Terminal ttype, attr)
   ) input
-  |> loop [0]
+  |> loop [0] []
